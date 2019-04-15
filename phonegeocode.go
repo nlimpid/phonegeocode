@@ -10,7 +10,7 @@ import (
 var ErrCountryNotFound = errors.New("Could not identify country from phone number.")
 
 type Geocoder interface {
-	Country(number string) (string, error)
+	Country(number string) (string, string, error)
 }
 
 // New initialises a new thread-safe geocoder
@@ -25,16 +25,20 @@ type trieGeocoder struct {
 }
 
 // Country tries to identify the country for a phone number - assuming it is provided in i18n format (+nn)
-func (g *trieGeocoder) Country(number string) (cc string, err error) {
+func (g *trieGeocoder) Country(number string) (areaCode string, cc string, err error) {
 	number = strings.TrimPrefix(number, "+")
 
 	maxLen := -1
-	g.data.VisitPrefixes(gotrie.Prefix(number), func(prefix gotrie.Prefix, item gotrie.Item) error {
+	err = g.data.VisitPrefixes(gotrie.Prefix(number), func(prefix gotrie.Prefix, item gotrie.Item) error {
 		if len(prefix) > maxLen {
 			cc = item.(string)
+			areaCode = string(prefix)
 		}
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	if len(cc) == 0 {
 		err = ErrCountryNotFound
